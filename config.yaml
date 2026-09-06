@@ -1,0 +1,168 @@
+# Global config for THE MOMENT kit.
+film_title: "THE MOMENT"
+shots_file: shots_bangalore.json   # definitive Bangalore-years cut (Observer spine + ECT + possessiveness)
+                                   # other cuts: shots_moment.json / shots_moment_5min.json / _10min.json
+fps: 24
+interpolate_fps: 48
+width: 1280
+height: 720
+base_model: Wan2.2-S2V
+quant: Q8                          # Q5/Q6 fallback on a single T4; never Q4 for finals
+steps: 30
+cfg: 5.5
+sampler: uni_pc
+scheduler: beta
+upscale: 1.75
+rejection_samples: 3               # take best of N per shot
+codeformer_fidelity: 0.7
+max_clip_seconds: 5
+
+paths:
+  refs: refs
+  script: script/lines.csv
+  audio_bg: audio/bg
+  audio_prompts: audio/prompts.csv
+  work: /tmp/moment_work            # scratch (NOT /kaggle/working which is capped)
+  out: output
+  models: /kaggle/input/moment-models  # read-only model dataset mount
+
+tts:
+  hindi: ai4bharat/indic-parler-tts
+  english: hexgrad/Kokoro-82M
+  backup: myshell-ai/MeloTTS-English
+
+score:
+  duck_db: 18                       # duck music under narration
+  crossfade_ms: 1200
+  shared_pad: true                  # faint pad under whole film for continuity
+  # One continuous soundtrack. Each movement = one song file spanning its shots,
+  # crossfaded into the next. Drop the matching file into audio/bg/ (empty slot -> AI stem).
+  movements:
+    origin:            { file: origin.mp3,            shots: [p01_thin_boy, p02_rejection] }
+    gehra_hua:         { file: gehra_hua.mp3,         shots: [b03_interview, b03_tribute, b03a_minute, b03b_tap] }
+    nindaraan:         { file: nindaraan.mp3,         shots: [b03b2_embrace, b03b2_confession, b03b2_reply, b03b2_plea, b03b2_vo] }
+    mora_piya:         { file: mora_piya.mp3,         shots: [b03c_nooneshearing, b03c2_possessive, b03e_appraisal, b03e2_angel, b03f_apology, b03d_father, b04_trembling, b04a_leaving_project, b04b_lift, b04c_observer] }
+    lady_in_red:       { file: lady_in_red.mp3,       shots: [b05_doctor, b05i_dress, b05i_vo] }
+    hallucination_bed: { file: hallucination_bed.mp3, shots: [b05e_numbing, b05f_hallucination] }
+    tu_jo_nahin:       { file: tu_jo_nahin.mp3,       shots: [b05f2_ect, b05f3_aftermath, b05f4_vegetable, b05f5_norecognition, b05wl_wohlamhe, b05om_omkara, b05g_panic, b05f6_doyouremember] }
+    chal_chale:        { file: chal_chale.mp3,        shots: [b05f7_lastpoint, b05f8_emptyroom, b06_leaving_bangalore] }
+    boba_tunnel:       { file: boba_tunnel.mp3,       shots: [b07_silchar, b07_endcard] }
+
+gpu:
+  hero_shots_mode: A                # pooled/DisTorch, Q8@720p
+  simple_shots_mode: B              # split, one card per shot
+  always_stage_split: true          # mode C
+
+# ---- Hardware profiles (v3.1) ------------------------------------------------
+# Switch cards with ONE line: set active_profile below. The chosen profile's
+# values override the matching keys above at load time (via src/cfgutil.py).
+#   kaggle_2xt4  -> FREE (Kaggle ~30 GPU-hr/week, 2x T4). Full quality. $0 at risk.
+#   lightning_l4 -> single L4 24GB (Ada, fp8). Cost-cut to fit a few dollars /
+#                   your free monthly L4 hours. L4 = $0.48/GPU-hr (verified 2026).
+active_profile: kaggle_2xt4
+
+profiles:
+  kaggle_2xt4:
+    num_gpus: 2
+    attention: xformers        # T4 = Turing sm_75: NO fp8 / NO SageAttention
+    quant: Q8
+    rejection_samples: 3
+    steps: 30
+    upscale: 1.75
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 0.0       # Kaggle free tier
+    comfy_flags: "--cache-none --disable-smart-memory"
+  lightning_l4:
+    num_gpus: 1
+    attention: fp8             # L4 = Ada sm_89: fp8 OK -> faster
+    quant: Q6                  # cost-saver, fits 24GB easily
+    rejection_samples: 1       # biggest cost lever: 1 take vs 3 (~3x cheaper)
+    steps: 24
+    upscale: 1.5
+    width: 1152
+    height: 648
+    rate_per_gpu_hr: 0.48      # $/GPU-hr on-demand (lightning.ai/pricing, 2026)
+    comfy_flags: "--fast --cache-none"
+  lightning_a100_40g:
+    # BEST no-card free tier for this workload. Lightning AI free plan =
+    # ~10 A100-40GB GPU-hr/month (phone verify, NO credit card), one-click
+    # ComfyUI, 50GB persistent storage, Studio runs 24/7 (restart every 4h).
+    # A100 is 4-8x faster per step than a T4 -> more takes, higher res, same hours.
+    num_gpus: 1
+    attention: xformers        # A100 = Ampere sm_80: xformers/flash OK. NOTE: NO fp8 (Ada/Hopper only)
+    quant: Q8                  # Q8 GGUF fits 40GB with huge headroom. bf16/fp16 = swap
+                               # UnetLoaderGGUF -> UNETLoader in workflows (marginal gain vs Q8; TODO)
+    rejection_samples: 4
+    steps: 40
+    upscale: 2.0
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 0.0       # free tier; ~$2.19/GPU-hr after free hours (lightning.ai/pricing 2026)
+    comfy_flags: "--cache-none"
+  colab_t4:
+    # NO-phone + NO-card path. Google Colab free needs only a Google account
+    # (you already have gmail) -> no card, no phone verification. Single T4 16GB.
+    # Same hardware class as Kaggle but 1 GPU and unpredictable session quota.
+    num_gpus: 1
+    attention: xformers        # T4 = Turing sm_75: NO fp8 / NO SageAttention
+    quant: Q6                  # lighter GGUF so 14B fits 16GB with text-encoder offload
+    rejection_samples: 1       # single take -> keeps per-shot time feasible on ONE T4
+    steps: 28
+    upscale: 1.5
+    width: 1152
+    height: 648
+    rate_per_gpu_hr: 0.0       # Colab free (unpredictable quota, ~12h session cap, no card/phone)
+    comfy_flags: "--cache-none --disable-smart-memory"
+
+# ---- Music policy (added 12 Jul 2026) ----
+# This film is carried by near-constant first-person narration, so songs play as
+# INSTRUMENTALS under the voice (real melody, no competing lyrics). The full sung
+# version rises only at the very end, after the last narration line rests.
+music_policy:
+  under_narration: instrumental   # use instrumental/karaoke versions of the real songs
+  vocals_swell_at_end: true       # closing song's sung version may play out at the finish
+  end_movement: boba_tunnel       # movement where vocals may swell after narration ends
+
+# ---- Clips / monetization mode (added 14 Jul 2026) ----
+# Package individual shots as standalone monetizable clips via `python3 src/clips.py`.
+# Runs on CPU (free) -- keep the GPU for generation only.
+clips:
+  horizontal: { w: 1920, h: 1080 }   # 16:9 master
+  vertical:   { w: 1080, h: 1920 }   # 9:16 for Shorts / Reels / TikTok (center-crop)
+  thumbnail_at: 0.5                  # grab thumbnail at this fraction of the clip
+  music_under_clip: true             # lay the shot's instrumental movement music under the clip
+  ai_label: true                     # embed AI-generated metadata + C2PA content credentials
+  creator: "Niloy Das"               # rights holder baked into metadata / manifest
+
+# ---- Personality-rights safety: owned synthetic identity ----
+# Real-actor references (e.g. hero_alam_raveena.mp4) create personality-rights liability
+# for monetized clips in India. Put YOUR OWNED, original character stills/video in
+# refs/original_identity/ and flip enabled:true -> the renderer uses it for ALL characters.
+identity_override:
+  enabled: false
+  refs_dir: refs/original_identity
+
+# ---- Quality-check thresholds (added 14 Jul 2026) ----
+# Read by src/qc.py. These are HEURISTIC DEFAULTS, not yet tuned on real generative
+# frames -- after your first real GPU batch, edit these numbers (no code change needed).
+# Reliable checks: min_w/min_h, dur_tol, fps_tol, loudness. Rough triage only: sharp_min, flicker_max.
+qc:
+  min_w: 640
+  min_h: 360
+  dur_tol: 0.75        # seconds a clip may differ from its planned duration
+  fps_tol: 1.5
+  sharp_min: 15        # Laplacian-variance floor (uncalibrated; high can also mean noise)
+  flicker_max: 12      # frame-diff ceiling (uncalibrated; fast motion reads as flicker)
+  lufs_hi: -9          # loudness too hot above this
+  lufs_lo: -30         # loudness too quiet below this
+
+# ---- Identity-consistency check (added 14 Jul 2026) ----
+# Read by src/identity_check.py. Compares each shot's face(s) to the character's
+# reference images (refs/<char>/) using ArcFace embeddings and flags drift.
+# Requires insightface on the render box:  pip install insightface onnxruntime-gpu
+# (onnxruntime is already present; first run downloads the buffalo_l model ~300MB).
+identity:
+  drift_cosine: 0.35   # cosine similarity below this = likely a different-looking face (DRIFT)
+  sample_frames: 12    # frames sampled per shot for face embedding
+  min_det_score: 0.5   # minimum detector confidence to trust a face

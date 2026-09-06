@@ -1,0 +1,195 @@
+film_title: THE_CONFRONTATION_CLIP
+shots_file: shots_confrontation.json
+fps: 24
+interpolate_fps: 60
+width: 1280
+height: 720
+base_model: Wan2.2-S2V
+quant: Q8
+steps: 30
+cfg: 5.5
+sampler: uni_pc
+scheduler: beta
+upscale: 1.75
+rejection_samples: 3
+codeformer_fidelity: 0.7
+max_clip_seconds: 8
+paths:
+  refs: refs
+  script: script/lines_confrontation.csv
+  audio_bg: audio/bg_confrontation
+  audio_prompts: audio/prompts_confrontation.csv
+  work: /tmp/confrontation_work
+  out: output_confrontation
+  models: /kaggle/input/moment-models
+character_forge:
+  enabled: true
+  targets:
+  - jack
+  - julie
+  workflow: charforge
+  out_root: refs
+  overwrite: false
+tts:
+  english: hexgrad/Kokoro-82M
+  backup: myshell-ai/MeloTTS-English
+  hindi: ai4bharat/indic-parler-tts
+  # Tribute registers (transformed originals, NOT impersonations): the man
+  # carries a Joker-order menace, the woman a Blanchett-order glacial gravitas.
+  # Direction guides casting only and is not spoken aloud.
+  speak_direction: false
+  voice_cast:
+    jack:
+    - am_onyx
+    - am_fenrir
+    - am_adam
+    - af_heart
+    julie:
+    - af_nicole
+    - af_sarah
+    - af_bella
+    - af_heart
+  performance:
+    jack: quiet dangerous stillness, an unsettling calm hiding menace, wounded and coiled, low and deliberate, never shouting
+    julie: glacial regal precision, cool commanding authority, luminous and formidable, restrained emotion beneath a formidable stillness
+score:
+  duck_db: 18
+  crossfade_ms: 2200
+  shared_pad: true
+  movements:
+    prelude:
+      file: prelude.mp3
+      shots:
+      - pro_alone
+      - pro_seen
+      - pro_silence
+      - pro_crossing
+    search:
+      file: search.mp3
+      shots:
+      - search_void
+      - search_run
+      - search_water
+      - search_fear
+      - search_found
+    confrontation:
+      file: confrontation.mp3
+      shots:
+      - confr_caught
+      - confr_allblades
+      - confr_dare
+      - confr_dontouch
+      - confr_whomade
+      - confr_blood
+      - confr_ect
+      - confr_sayit
+      - confr_aim
+      - confr_real
+      - confr_putdown
+      - confr_reachfire
+      - confr_treatment
+      - confr_lightning
+      - confr_smile
+      - confr_lastlaugh
+      - confr_fall
+  chorus_gain_db: -15
+gpu:
+  hero_shots_mode: A
+  simple_shots_mode: B
+  always_stage_split: true
+active_profile: lightning_h100_max
+profiles:
+  kaggle_2xt4:
+    num_gpus: 2
+    attention: xformers
+    quant: Q8
+    rejection_samples: 3
+    steps: 30
+    upscale: 1.75
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 0.0
+    comfy_flags: --cache-none --disable-smart-memory
+  kaggle_2xt4_max:
+    num_gpus: 2
+    attention: xformers
+    quant: Q8
+    rejection_samples: 4
+    steps: 40
+    upscale: 2.0
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 0.0
+    comfy_flags: --cache-none --disable-smart-memory
+  lightning_l4:
+    num_gpus: 1
+    attention: fp8
+    quant: Q6
+    rejection_samples: 1
+    steps: 24
+    upscale: 1.5
+    width: 1152
+    height: 648
+    rate_per_gpu_hr: 0.48
+    comfy_flags: --fast --cache-none
+  # --- Lightning AI full-quality profiles (rates are on-demand estimates; set to 0.0 if using free GPU hours) ---
+  lightning_h100_max:
+    num_gpus: 1
+    attention: sdpa
+    quant: bf16
+    rejection_samples: 3
+    steps: 50
+    upscale: 2.0
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 2.99
+    comfy_flags: --highvram --cache-none
+  lightning_a100_max:
+    num_gpus: 1
+    attention: sdpa
+    quant: bf16
+    rejection_samples: 3
+    steps: 50
+    upscale: 2.0
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 2.19
+    comfy_flags: --highvram --cache-none
+  lightning_a100_40gb:
+    num_gpus: 1
+    attention: sdpa
+    quant: bf16
+    rejection_samples: 3
+    steps: 45
+    upscale: 2.0
+    width: 1280
+    height: 720
+    rate_per_gpu_hr: 1.29
+    comfy_flags: --cache-none --disable-smart-memory
+music_policy:
+  under_narration: cinematic_original_score_ducked_under_dialogue
+  swell_in_wordless_beats: true
+  wordless_beats: []
+  original_only: true
+real_characters: []
+lipsync:
+  enabled: false  # all beats are VO/narration (talking:false); no on-camera lip-sync needed
+realism:
+  positive: photorealistic, shot on 35mm film, natural skin texture with visible pores, realistic subsurface scattering, cinematic lighting, shallow depth of field, volumetric light, subtle film grain, physically accurate motion, detailed hands, ultra detailed, high dynamic range
+  negative: cartoon, anime, cgi, 3d render, plastic skin, waxy skin, airbrushed, over-smoothed skin, deformed hands, extra fingers, mutated fingers, warped face, identity drift, flickering, temporal artifacts, oversaturated, video game, illustration, painting, blurry, low detail, watermark, text
+sfx:
+  enabled: true
+  mode: cpu            # cpu = procedural foley via ffmpeg (FREE, offline); audiogen = facebook/audiogen-medium on a GPU box
+  gain_db: -8          # ambience/foley sits beneath score + dialogue
+finale:
+  enabled: true
+  duration: 9.0
+  freeze_hold: 1.4
+  freeze_on: confr_smile
+  # the collection of moving images that accelerates, then curdles into a joke
+  recap_shots: [pro_seen, pro_silence, pro_alone, pro_crossing, confr_real, confr_aim, confr_sayit, confr_smile]
+intensity:
+  # 'the defect becomes the art' -- on beats at/above this intensity the take-selector
+  # KEEPS glitch/flicker/blur (no penalty) and the prompt ALLOWS it (artifact terms
+  # stripped from the negative). Directed intensity, not an anomaly to sand off.
+  keep_glitch_threshold: 0.66
